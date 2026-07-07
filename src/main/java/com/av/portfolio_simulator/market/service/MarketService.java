@@ -25,7 +25,7 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "LoggingSimilarMessage"})
 @RequiredArgsConstructor
 public class MarketService {
 
@@ -54,9 +54,15 @@ public class MarketService {
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
+        if (response != null && response.containsKey("Information")) {
+            log.warn("Alpha Vantage API limit reached: {}", response.get("Information"));
+            throw new IllegalStateException("Market data temporarily unavailable. API rate limit reached.");
+        }
+
         if (response == null || !response.containsKey("bestMatches")) {
             return Collections.emptyList();
         }
+
 
         List<Map<String, String>> matches = (List<Map<String, String>>) response.get("bestMatches");
 
@@ -81,14 +87,27 @@ public class MarketService {
      * @return current quote with price, change, and volume
      * @throws IllegalArgumentException if the symbol is not found or the API returns no data
      */
-    @Cacheable(value = "stockQuote", key = "#symbol.toUpperCase()")
+    @Cacheable(value = "stockQuote", key = "#symbol.toUpperCase()", unless = "#result == null")
     public StockQuoteResponse getQuote(String symbol) {
         log.info("Calling Alpha Vantage GLOBAL_QUOTE for symbol: {}", symbol);
 
         Map<String, Object> response = restClient.get()
-                .uri(baseUrl+"?function=GLOBAL_QUOTE&symbol={symbol}&apikey={apikey}", symbol, apiKey)
+                .uri(baseUrl + "?function=GLOBAL_QUOTE&symbol={symbol}&apikey={apikey}", symbol, apiKey)
                 .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(Map.class);
+
+        log.info("Alpha Vantage raw response: {}", response);
+
+        // Detect rate limit or API key errors
+        if (response != null && response.containsKey("Information")) {
+            log.warn("Alpha Vantage API limit reached: {}", response.get("Information"));
+            throw new IllegalStateException("Market data temporarily unavailable. API rate limit reached.");
+        }
+
+        if (response != null && response.containsKey("Note")) {
+            log.warn("Alpha Vantage API note: {}", response.get("Note"));
+            throw new IllegalStateException("Market data temporarily unavailable. Please try again later.");
+        }
 
         if (response == null || !response.containsKey("Global Quote")) {
             throw new IllegalArgumentException("Symbol not found: " + symbol);

@@ -1,4 +1,4 @@
-package com.av.portfolio_simulator.exception;
+package com.av.portfolio_simulator.common.exception;
 
 import com.av.portfolio_simulator.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;

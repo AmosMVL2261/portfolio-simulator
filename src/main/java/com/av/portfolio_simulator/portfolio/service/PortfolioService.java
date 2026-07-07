@@ -1,10 +1,12 @@
 package com.av.portfolio_simulator.portfolio.service;
 
+import com.av.portfolio_simulator.market.service.MarketService;
 import com.av.portfolio_simulator.portfolio.dto.CreatePortfolioRequest;
 import com.av.portfolio_simulator.portfolio.dto.PortfolioResponse;
 import com.av.portfolio_simulator.portfolio.entity.SimulatedPortfolio;
 import com.av.portfolio_simulator.portfolio.repository.SimulatedPortfolioRepository;
 import com.av.portfolio_simulator.security.UserPrincipal;
+import com.av.portfolio_simulator.transaction.repository.HoldingRepository;
 import com.av.portfolio_simulator.user.entity.User;
 import com.av.portfolio_simulator.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,8 @@ public class PortfolioService {
 
     private final SimulatedPortfolioRepository portfolioRepository;
     private final UserRepository userRepository;
+    private final HoldingRepository holdingRepository;
+    private final MarketService marketService;
 
     /**
      * Creates a new simulated portfolio for the authenticated user.
@@ -64,7 +68,7 @@ public class PortfolioService {
     public List<PortfolioResponse> getAll(UserPrincipal principal) {
         return portfolioRepository.findByUserId(principal.getId())
                 .stream()
-                .map(p -> toResponse(p, BigDecimal.ZERO))
+                .map(p -> toResponse(p, calculateHoldingsValue(p.getId())))
                 .toList();
     }
 
@@ -78,7 +82,7 @@ public class PortfolioService {
         SimulatedPortfolio portfolio = portfolioRepository.findByIdAndUserId(portfolioId, principal.getId()).orElseThrow(
                 () -> new IllegalArgumentException("Portfolio not found")
         );
-        return toResponse(portfolio, BigDecimal.ZERO);
+        return toResponse(portfolio, calculateHoldingsValue(portfolio.getId()));
     }
 
     /**
@@ -110,6 +114,22 @@ public class PortfolioService {
                 .createdAt(portfolio.getCreatedAt())
                 .updatedAt(portfolio.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * Calculates the total current market value of all holdings in a portfolio.
+     * Fetches live prices from Alpha Vantage for each held symbol.
+     * Returns zero if the portfolio has no holdings.
+     */
+    private BigDecimal calculateHoldingsValue(Long portfolioId) {
+        return holdingRepository.findByPortfolioId(portfolioId).stream()
+            .map(
+                holding -> {
+                    BigDecimal currentPrice = marketService.getQuote(holding.getSymbol()).getPrice();
+                    return currentPrice.multiply(holding.getQuantity()).setScale(2, RoundingMode.HALF_UP);
+                }
+            )
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
 }
