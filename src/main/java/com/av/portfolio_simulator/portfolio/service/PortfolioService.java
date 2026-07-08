@@ -1,5 +1,7 @@
 package com.av.portfolio_simulator.portfolio.service;
 
+import com.av.portfolio_simulator.common.exception.BusinessException;
+import com.av.portfolio_simulator.common.exception.ResourceNotFoundException;
 import com.av.portfolio_simulator.market.service.MarketService;
 import com.av.portfolio_simulator.portfolio.dto.CreatePortfolioRequest;
 import com.av.portfolio_simulator.portfolio.dto.PortfolioResponse;
@@ -36,12 +38,12 @@ public class PortfolioService {
      * Creates a new simulated portfolio for the authenticated user.
      * The cash balance starts equal to the initial capital.
      *
-     * @throws IllegalArgumentException if the user already has a portfolio with the same name
+     * @throws BusinessException if the user already has a portfolio with the same name
      */
     @Transactional
     public PortfolioResponse create(CreatePortfolioRequest request, UserPrincipal principal) {
         if (portfolioRepository.existsByUserIdAndName(principal.getId(), request.getName())) {
-            throw new IllegalArgumentException("You already have a portfolio named '" + request.getName() + "'");
+            throw new BusinessException("You already have a portfolio named '" + request.getName() + "'");
         }
 
         User user = userRepository.findById(principal.getId()).orElseThrow(
@@ -75,12 +77,12 @@ public class PortfolioService {
     /**
      * Returns a specific portfolio by ID, scoped to the authenticated user.
      *
-     * @throws IllegalArgumentException if the portfolio does not exist or belongs to another user
+     * @throws ResourceNotFoundException if the portfolio does not exist or belongs to another user
      */
     @Transactional(readOnly = true)
     public PortfolioResponse getById(Long portfolioId, UserPrincipal principal) {
         SimulatedPortfolio portfolio = portfolioRepository.findByIdAndUserId(portfolioId, principal.getId()).orElseThrow(
-                () -> new IllegalArgumentException("Portfolio not found")
+                () -> new ResourceNotFoundException("Portfolio not found")
         );
         return toResponse(portfolio, calculateHoldingsValue(portfolio.getId()));
     }

@@ -3,6 +3,7 @@ package com.av.portfolio_simulator.auth.service;
 import com.av.portfolio_simulator.auth.dto.AuthResponse;
 import com.av.portfolio_simulator.auth.dto.LoginRequest;
 import com.av.portfolio_simulator.auth.dto.RegisterRequest;
+import com.av.portfolio_simulator.common.exception.BusinessException;
 import com.av.portfolio_simulator.config.JwtService;
 import com.av.portfolio_simulator.security.UserPrincipal;
 import com.av.portfolio_simulator.user.entity.Role;
@@ -34,15 +35,15 @@ public class AuthService {
      * Validates that the email and username are not already taken,
      * hashes the password, persists the user, and returns a JWT token.
      *
-     * @throws IllegalArgumentException if the email or username is already registered
+     * @throws BusinessException if the email or username is already registered
      */
     public AuthResponse register(RegisterRequest request) {
         if(userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email is already registered");
+            throw new BusinessException("Email is already registered");
         }
 
         if(userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Username is already taken");
+            throw new BusinessException("Username is already taken");
         }
 
         User user = User.builder()

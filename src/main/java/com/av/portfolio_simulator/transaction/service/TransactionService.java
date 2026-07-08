@@ -1,5 +1,7 @@
 package com.av.portfolio_simulator.transaction.service;
 
+import com.av.portfolio_simulator.common.exception.BusinessException;
+import com.av.portfolio_simulator.common.exception.ResourceNotFoundException;
 import com.av.portfolio_simulator.market.service.MarketService;
 import com.av.portfolio_simulator.portfolio.entity.SimulatedPortfolio;
 import com.av.portfolio_simulator.portfolio.repository.SimulatedPortfolioRepository;
@@ -50,8 +52,9 @@ public class TransactionService {
     /**
      * Executes a simulated buy order at the current market price.
      *
-     * @throws IllegalArgumentException if portfolio not found, insufficient cash,
-     *                                  or symbol not found in the market
+     * @throws ResourceNotFoundException if portfolio not found
+     * @throws BusinessException if insufficient cash,
+     *                           or symbol not found in the market
      */
     @Transactional
     public TransactionResponse buy(Long portfolioId, BuyRequest request, UserPrincipal userPrincipal) {
@@ -63,11 +66,9 @@ public class TransactionService {
 
         // Validate sufficient cash balance
         if(portfolio.getCashBalance().compareTo(totalCost) < 0) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "Insufficient cash balance. Required: %.2f, Available: %.2f",
-                    totalCost,
-                    portfolio.getCashBalance()
+            throw new BusinessException(
+                    "Insufficient cash balance. Required: %.2f, Available: %.2f"
+                    .formatted(totalCost, portfolio.getCashBalance()
                 )
             );
         }
@@ -116,8 +117,9 @@ public class TransactionService {
     /**
      * Executes a simulated sell order at the current market price.
      *
-     * @throws IllegalArgumentException if portfolio not found, no holding exists
-     *                                  for the symbol, or insufficient shares
+     * @throws ResourceNotFoundException if portfolio not found,
+     * @throws BusinessException if no holding exists
+     *                           for the symbol, or insufficient shares
      */
     @Transactional
     public TransactionResponse sell(Long portfolioId, SellRequest request, UserPrincipal userPrincipal) {
@@ -127,16 +129,16 @@ public class TransactionService {
 
         // Validate holding exists
         Holding holding = holdingRepository.findByPortfolioIdAndSymbol(portfolioId, symbol).orElseThrow(
-            () -> new IllegalArgumentException(
-                "You don't own any shares of " + symbol + " in this portfolio"
+            () -> new ResourceNotFoundException(
+                    "You don't own any shares of " + symbol + " in this portfolio"
             )
         );
 
         // Validate sufficient shares
         if(holding.getQuantity().compareTo(request.getQuantity()) < 0) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "Insufficient shares. Requested: %s, Available: %s",
+            throw new BusinessException(
+                "Insufficient shares. Requested: %s, Available: %s"
+                .formatted(
                     request.getQuantity().toPlainString(),
                     holding.getQuantity().toPlainString()
                 )
@@ -210,11 +212,11 @@ public class TransactionService {
     /**
      * Validates that the portfolio exists and belongs to the authenticated user.
      *
-     * @throws IllegalArgumentException if not found or owned by another user
+     * @throws ResourceNotFoundException if not found or owned by another user
      */
     private SimulatedPortfolio getPortfolioForUser(Long portfolioId, UserPrincipal userPrincipal) {
         return portfolioRepository.findByIdAndUserId(portfolioId, userPrincipal.getId()).orElseThrow(
-                () -> new IllegalArgumentException("Portfolio not found")
+                () -> new ResourceNotFoundException("Portfolio not found")
         );
     }
 

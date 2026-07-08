@@ -1,5 +1,7 @@
 package com.av.portfolio_simulator.market.service;
 
+import com.av.portfolio_simulator.common.exception.MarketDataException;
+import com.av.portfolio_simulator.common.exception.ResourceNotFoundException;
 import com.av.portfolio_simulator.market.dto.StockQuoteResponse;
 import com.av.portfolio_simulator.market.dto.StockSearchResult;
 import lombok.RequiredArgsConstructor;
@@ -56,13 +58,12 @@ public class MarketService {
 
         if (response != null && response.containsKey("Information")) {
             log.warn("Alpha Vantage API limit reached: {}", response.get("Information"));
-            throw new IllegalStateException("Market data temporarily unavailable. API rate limit reached.");
+            throw new MarketDataException("Market data temporarily unavailable. API rate limit reached.");
         }
 
         if (response == null || !response.containsKey("bestMatches")) {
             return Collections.emptyList();
         }
-
 
         List<Map<String, String>> matches = (List<Map<String, String>>) response.get("bestMatches");
 
@@ -85,7 +86,8 @@ public class MarketService {
      *
      * @param symbol ticker symbol (e.g. "AAPL", "SPY", "MSFT")
      * @return current quote with price, change, and volume
-     * @throws IllegalArgumentException if the symbol is not found or the API returns no data
+     * @throws ResourceNotFoundException if the symbol
+     * @throws MarketDataException if is not found or the API returns no data
      */
     @Cacheable(value = "stockQuote", key = "#symbol.toUpperCase()", unless = "#result == null")
     public StockQuoteResponse getQuote(String symbol) {
@@ -101,22 +103,22 @@ public class MarketService {
         // Detect rate limit or API key errors
         if (response != null && response.containsKey("Information")) {
             log.warn("Alpha Vantage API limit reached: {}", response.get("Information"));
-            throw new IllegalStateException("Market data temporarily unavailable. API rate limit reached.");
+            throw new MarketDataException("Market data temporarily unavailable. API rate limit reached.");
         }
 
         if (response != null && response.containsKey("Note")) {
             log.warn("Alpha Vantage API note: {}", response.get("Note"));
-            throw new IllegalStateException("Market data temporarily unavailable. Please try again later.");
+            throw new MarketDataException("Market data temporarily unavailable. Please try again later.");
         }
 
         if (response == null || !response.containsKey("Global Quote")) {
-            throw new IllegalArgumentException("Symbol not found: " + symbol);
+            throw new ResourceNotFoundException("Symbol not found: " + symbol);
         }
 
         Map<String, String> quote = (Map<String, String>) response.get("Global Quote");
 
         if (quote == null || quote.isEmpty() || !quote.containsKey("05. price")) {
-            throw new IllegalArgumentException("Symbol not found or market data unavailable: " + symbol);
+            throw new ResourceNotFoundException("Symbol not found or market data unavailable: " + symbol);
         }
 
         String rawChangePercent = quote.getOrDefault("10. change percent", "0%")

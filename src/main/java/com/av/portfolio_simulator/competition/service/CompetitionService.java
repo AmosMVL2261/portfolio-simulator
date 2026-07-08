@@ -1,5 +1,7 @@
 package com.av.portfolio_simulator.competition.service;
 
+import com.av.portfolio_simulator.common.exception.BusinessException;
+import com.av.portfolio_simulator.common.exception.ResourceNotFoundException;
 import com.av.portfolio_simulator.competition.dto.CompetitionResponse;
 import com.av.portfolio_simulator.competition.dto.CreateCompetitionRequest;
 import com.av.portfolio_simulator.competition.dto.LeaderboardEntry;
@@ -53,12 +55,12 @@ public class CompetitionService {
      * Creates a new competition. The creator does not automatically join —
      * they must call join separately if they want to participate.
      *
-     * @throws IllegalArgumentException if end date is not after start date
+     * @throws BusinessException if end date is not after start date
      */
     @Transactional
     public CompetitionResponse create(CreateCompetitionRequest request, UserPrincipal userPrincipal) {
         if(!request.getEndDate().isAfter(request.getStartDate())) {
-            throw new IllegalArgumentException("End date must be after start sate");
+            throw new BusinessException("End date must be after start sate");
         }
 
         User creator = userRepository.findById(userPrincipal.getId()).orElseThrow(
@@ -95,20 +97,21 @@ public class CompetitionService {
      * Automatically creates a dedicated portfolio for the participant
      * with the competition's initial capital.
      *
-     * @throws IllegalArgumentException if already joined or competition is not PENDING/ACTIVE
+     * @throws ResourceNotFoundException if competition not found
+     * @throws BusinessException if already joined or competition is not PENDING/ACTIVE
      */
     @Transactional
     public CompetitionResponse join(Long competitionId, UserPrincipal userPrincipal) {
         Competition competition = competitionRepository.findById(competitionId).orElseThrow(
-                () -> new IllegalArgumentException("Competition not found")
+                () -> new ResourceNotFoundException("Competition not found")
         );
 
         if(competition.getStatus() == CompetitionStatus.FINISHED) {
-            throw new IllegalArgumentException("Cannot join a finished competition");
+            throw new BusinessException("Cannot join a finished competition");
         }
 
         if(participantRepository.existsByCompetitionIdAndUserId(competitionId, userPrincipal.getId())) {
-            throw new IllegalArgumentException("You have already joined this competition");
+            throw new BusinessException("You have already joined this competition");
         }
 
         User user = userRepository.findById(userPrincipal.getId()).orElseThrow(
@@ -140,12 +143,12 @@ public class CompetitionService {
      * Automatically creates a dedicated portfolio for the participant
      * with the competition's initial capital.
      *
-     * @throws IllegalArgumentException if already joined or competition is not PENDING/ACTIVE
+     * @throws ResourceNotFoundException if already joined or competition is not PENDING/ACTIVE
      */
     @Transactional(readOnly = true)
     public List<LeaderboardEntry> getLeaderboard(Long competitionId){
         competitionRepository.findById(competitionId).orElseThrow(
-            () -> new IllegalArgumentException("Competition not found")
+            () -> new ResourceNotFoundException("Competition not found")
         );
 
         List<CompetitionParticipant> participants = participantRepository.findByCompetitionId(competitionId);
