@@ -119,13 +119,12 @@ Open [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.ht
 ## Authentication
 
 All protected endpoints require a Bearer token in the Authorization header:
-Authorization: Bearer <your_jwt_token>
 
+```
+Authorization: Bearer <your_jwt_token>
 ```
 
 To authenticate in Swagger UI, click the **Authorize** button and paste your token (without the `Bearer` prefix).
-
-```
 
 ---
 
