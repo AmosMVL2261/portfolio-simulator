@@ -24,7 +24,7 @@ public class User {
     private Long id;
 
     // Must be unique across all users, used for display purposes
-    @Column(nullable = false, unique = true, length = 80)
+    @Column(nullable = false, unique = true, length = 50)
     private String username;
 
     // Used as the authentication identifier (login credential)
